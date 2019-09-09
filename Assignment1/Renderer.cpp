@@ -13,6 +13,9 @@ bool Renderer::keys[1024];
 float Renderer::numrotx = 0.0f;
 float Renderer::numroty = 0.0f;
 
+float Renderer::currotx = 0.0f;
+float Renderer::curroty = 0.0f;
+
 Renderer::Renderer()
 {
 }
@@ -47,12 +50,12 @@ void Renderer::nanogui_init(GLFWwindow* window)
 		m_camera->reset();
 	});
 
-	gui_1->addButton("Increase Y Rot", []() { Renderer::numroty+=.5f; });
-	gui_1->addButton("Decrease Y Rot", []() { Renderer::numroty-=.5f; });
-	gui_1->addButton("Increase X Rot", []() { Renderer::numrotx+=.5f; });
-	gui_1->addButton("Decrease X Rot", []() { Renderer::numrotx-=.5f; });
+	gui_1->addVariable("Rotate Angle a:", Renderer::numrotx)->setSpinnable(true);
+	gui_1->addButton("Rotate Local X", []() { Renderer::currotx+=Renderer::numrotx; });
+	gui_1->addVariable("Rotate Angle b:", Renderer::numroty)->setSpinnable(true);
+	gui_1->addButton("Rotate Global Y", []() { Renderer::curroty+=Renderer::numroty; });
 
-	gui_1->addButton("Reset Model", []() { Renderer::numrotx = 0; Renderer::numroty = 0; });
+	gui_1->addButton("Reset Model", []() { Renderer::currotx = 0; Renderer::curroty = 0; });
 
 	m_nanogui_screen->setVisible(true);
 	m_nanogui_screen->performLayout();
@@ -236,15 +239,17 @@ void Renderer::draw_scene(Shader& shader)
 			// to get the new y rotation, multiply Renderer::bunnyRadius (r) times sin(theta)
 			// rotate around the global y axis, and local x axis
 			// green arrow is the global y axis
+			// ORDER OF ROTATION:
+			// rotate around local x axis (a)
+			// rotate around globale y axis (b)
 
 			glm::mat4 idenmat = glm::mat4();
-			//glm::vec3 xrot = glm::vec3(glm::radians(5.0f * Renderer::numrotx), 0, 0);
-			//main_object_model_mat = glm::translate(main_object_model_mat, xrot);
-			main_object_model_mat = glm::rotate(main_object_model_mat, glm::radians(5.0f * Renderer::numrotx), glm::vec3(1, 0, 0));
-			glm::vec3 yrot = glm::vec3(5 * cos(glm::radians(5.0f * Renderer::numroty)), 5 * sin(glm::radians(5.0f * Renderer::numroty)), 0);
+
+			glm::vec3 yrot = glm::vec3(5 * cos(glm::radians(Renderer::curroty)), 5 * sin(glm::radians(Renderer::curroty)), 0);
 			main_object_model_mat = glm::translate(idenmat, yrot);
+			
 			// uncommenting the below line makes the program work, however, it works in the wrong order
-			//main_object_model_mat = glm::rotate(main_object_model_mat, glm::radians(5.0f * Renderer::numrotx), glm::vec3(1, 0, 0));
+			main_object_model_mat = glm::rotate(main_object_model_mat, glm::radians(5.0f * Renderer::currotx), glm::vec3(1, 0, 0));
 
 			glUniformMatrix4fv(glGetUniformLocation(shader.program, "model"), 1, GL_FALSE, glm::value_ptr(main_object_model_mat));
 			glUniformMatrix4fv(glGetUniformLocation(shader.program, "view"), 1, GL_FALSE, glm::value_ptr(m_camera->get_view_mat()));

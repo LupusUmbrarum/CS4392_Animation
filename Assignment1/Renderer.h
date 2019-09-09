@@ -37,6 +37,9 @@ public:
 	static float numroty;
 	static float numrotx;
 
+	static float curroty;
+	static float currotx;
+
 	std::vector<Object> obj_list;
 
 	glm::vec4 background_color = glm::vec4(0.1,0.1,0.1,0.1);
