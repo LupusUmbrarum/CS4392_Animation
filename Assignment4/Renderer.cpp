@@ -49,6 +49,20 @@ void Renderer::nanogui_init(GLFWwindow* window)
 		camera_z_widget->setValue(m_camera->position[2]);
 	});
 
+	gui_1->addGroup("Curve Control");
+	static auto crco = gui_1->addVariable("Catmull-Rom curve on/off", m_curve->calcCurve);
+
+	gui_1->addGroup("Time Control");
+	static auto aimw = gui_1->addVariable("Aircraft is moving", m_curve->aircraftIsMoving);
+	static auto t1w = gui_1->addVariable("t1", m_curve->t1);
+	static auto t2w = gui_1->addVariable("t2", m_curve->t2);
+	static auto ttw = gui_1->addVariable("t total", m_curve->ttotal);
+
+	gui_1->addButton("Reset Movement", []() 
+		{
+		m_aircraft_animation->reset();
+		});
+
 	m_nanogui_screen->setVisible(true);
 	m_nanogui_screen->performLayout();
 
@@ -144,15 +158,21 @@ void Renderer::display(GLFWwindow* window)
 {
 	Shader m_shader = Shader("./shader/basic.vert", "./shader/basic.frag");
 
+	bool controlBool = !m_curve->calcCurve;
+
 	// Main frame while loop
 	while (!glfwWindowShouldClose(window))
 	{
 
 		glfwPollEvents();
 
-		if (is_scene_reset) {
+		if (is_scene_reset || controlBool != m_curve->calcCurve)
+		{
+			m_curve->init(!controlBool);
 			scene_reset();
+			m_aircraft_animation->reset();
 			is_scene_reset = false;
+			controlBool = m_curve->calcCurve;
 		}
 
 		camera_move();
@@ -198,7 +218,7 @@ void Renderer::load_models()
 	aircraft_object.obj_color = glm::vec4(1.0, 1.0, 1.0, 1.0);
 	aircraft_object.obj_name = "aircraft";
 
-	Object curve_object(m_curve->curve_points_pos);
+	Object curve_object(m_curve->curvePoints);
 	curve_object.m_render_type = RENDER_LINES;
 	curve_object.obj_color = glm::vec4(1.0, 0.0, 0.0,1.0);
 	curve_object.obj_name = "curve";
@@ -232,6 +252,8 @@ void Renderer::draw_scene(Shader& shader)
 
 	glFrontFace(GL_CW);
 
+	int cubeIndex = 0;
+
 	for (size_t i = 0; i < obj_list.size(); i++)
 	{
 		if (obj_list[i].obj_name == "cube")
@@ -241,6 +263,12 @@ void Renderer::draw_scene(Shader& shader)
 				glm::mat4 cur_obj_model_mat = glm::mat4(1.0f);
 
 				cur_obj_model_mat = glm::translate(cur_obj_model_mat, m_curve->control_points_pos[j]);
+
+				glm::quat q = glm::quat(m_curve->control_points_quaternion[cubeIndex++]);
+
+				glm::mat4 rotmat = glm::toMat4(q);
+
+				cur_obj_model_mat = cur_obj_model_mat * rotmat;
 
 				cur_obj_model_mat = glm::scale(cur_obj_model_mat, glm::vec3(0.4, 0.4, 0.4));
 

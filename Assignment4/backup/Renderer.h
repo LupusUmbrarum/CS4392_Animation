@@ -6,7 +6,7 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
-#define GLM_ENABLE_EXPERIMENTAL
+ #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -24,7 +24,6 @@
 class Renderer
 {
 public:
-
 	GLFWwindow* m_window;
 
 	static Camera* m_camera;
@@ -66,6 +65,8 @@ public:
 
 	void draw_scene(Shader& shader);
 	void draw_object(Shader& shader, Object& object);
+
+	void draw_axis(Shader& shader, const glm::mat4 axis_obj_mat);
 
 	void bind_vaovbo(Object &cur_obj);
 

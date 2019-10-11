@@ -18,13 +18,13 @@ void Aircraft_Animation::init()
 
 void Aircraft_Animation::init(Curve* animation_curve)
 {
-	m_animation_curve = animation_curve;
+	m_curve = animation_curve;
 	reset();
 }
 
 void Aircraft_Animation::update(float delta_time)
 {
-	if (!m_animation_curve->aircraftIsMoving)
+	if (!m_curve->aircraftIsMoving)
 	{
 		return;
 	}
@@ -32,22 +32,16 @@ void Aircraft_Animation::update(float delta_time)
 	checkAcceleration();
 
 	// this sets the real time to logical time
-	tcurrent += (delta_time) * tinc;
+	tcurrent += (delta_time)*tinc;
 
-	std::cout << "tcurrent: " << tcurrent << std::endl;
-
-	distanceCovered = m_animation_curve->getNextDistance(distanceCovered + getDistance());
-
-	std::cout << "distanceCovered: " << distanceCovered << std::endl;
+	distanceCovered = m_curve->getNextDistance(distanceCovered + getDistance());
 
 	calcV0();
-
-	std::cout << "v0: " << v0 << std::endl;
-
+	
 	// overwriting previous command
 	pointIndex = tcurrent;
 
-	if (pointIndex >= m_animation_curve->curve_points_pos.size())
+	if (pointIndex >= m_curve->numPoints)
 	{
 		pointIndex = 0;
 		tcurrent = 0;
@@ -58,11 +52,31 @@ void Aircraft_Animation::update(float delta_time)
 
 void Aircraft_Animation::move(int pointIndex)
 {
-	m_model_mat = glm::mat4(1.0f);
+	glm::quat m1, m2;
 
-	if (m_animation_curve != nullptr && m_animation_curve->curve_points_pos.size() > 0)
+	m1 = m_curve->quats[pointIndex / 200];
+
+	// if the next point is out of bounds, get first point
+	if (pointIndex + 1 > m_curve->numPoints)
 	{
-		m_model_mat = glm::translate(m_model_mat, m_animation_curve->curve_points_pos[pointIndex]);
+		m2 = m_curve->quats[0];
+	}
+	else
+	{
+		m2 = m_curve->quats[(pointIndex / 200) + 1];
+	}
+
+	if (m_curve != nullptr && m_curve->curvePoints.size() > 0)
+	{
+		m_model_mat = glm::mat4(1.0f);
+
+		glm::quat q = m_curve->quats[pointIndex];
+
+		glm::mat4 rotmat = glm::toMat4(q);
+
+		m_model_mat = glm::translate(m_model_mat, m_curve->curvePoints[pointIndex]);
+		
+		m_model_mat *= rotmat;
 	}
 }
 
@@ -95,14 +109,14 @@ float Aircraft_Animation::ease(float t)
 	{
 		return v = v0 * ((t - t2) / (1.0f - t2));
 	}
-	
+
 	return .01f;
 	*/
 }
 
 void Aircraft_Animation::setAnimationVariables()
 {
-	Curve* c = m_animation_curve;
+	Curve* c = m_curve;
 
 	t1 = c->t1;
 	t2 = c->t2;
@@ -136,13 +150,13 @@ void Aircraft_Animation::checkAcceleration()
 		return;
 	}
 
-	if (tcurrent > t1 && tcurrent < adjt2)
+	if (tcurrent > t1&& tcurrent < adjt2)
 	{
 		acc = 0.0f;
 		return;
 	}
 
-	if (tcurrent > adjt2 && tcurrent < 1.0f)
+	if (tcurrent > adjt2&& tcurrent < 1.0f)
 	{
 		-1.0f;
 		return;
@@ -158,12 +172,12 @@ float Aircraft_Animation::getDistance()
 		return v0 * ((tcurrent * tcurrent) / (2 * t1));
 	}
 
-	if (tcurrent > t1 && tcurrent <= t2)
+	if (tcurrent > t1&& tcurrent <= t2)
 	{
 		return v0 * t1 / 2 + (v0 * (tcurrent - t2));
 	}
 
-	if (tcurrent > t2 && tcurrent <= 1.0)
+	if (tcurrent > t2&& tcurrent <= 1.0)
 	{
 		return v0 * t1 / 2 + v0 * (t2 - t1) + v0 * (1 - ((tcurrent - t2) / (2 * (1 - t2))) * (tcurrent - t2));
 	}

@@ -58,14 +58,16 @@ void Renderer::nanogui_init(GLFWwindow* window)
 	static auto t2w = gui_1->addVariable("t2", m_curve->t2);
 	static auto ttw = gui_1->addVariable("t total", m_curve->ttotal);
 
-	gui_1->addButton("Reset Movement", []() {
+	gui_1->addButton("Reset Movement", []() 
+		{
 		m_aircraft_animation->reset();
 		});
-
 
 	m_nanogui_screen->setVisible(true);
 	m_nanogui_screen->performLayout();
 
+
+	
 	glfwSetCursorPosCallback(window,
 		[](GLFWwindow *window, double x, double y) {
 		m_nanogui_screen->cursorPosCallbackEvent(x, y);
@@ -140,11 +142,10 @@ void Renderer::init()
 	m_camera->init();
 	m_lightings->init();
 	m_curve->init();
-
 	m_aircraft_animation->init(m_curve);
 
 	// Create a GLFWwindow object that we can use for GLFW's functions
-	this->m_window = glfwCreateWindow(m_camera->width, m_camera->height, "Assignment 3", nullptr, nullptr);
+	this->m_window = glfwCreateWindow(m_camera->width, m_camera->height, "Assignment 4", nullptr, nullptr);
 	glfwMakeContextCurrent(this->m_window);
 
 	glewExperimental = GL_TRUE;
@@ -156,16 +157,16 @@ void Renderer::init()
 void Renderer::display(GLFWwindow* window)
 {
 	Shader m_shader = Shader("./shader/basic.vert", "./shader/basic.frag");
+
 	bool controlBool = !m_curve->calcCurve;
 
 	// Main frame while loop
 	while (!glfwWindowShouldClose(window))
 	{
-		//std::cout << m_curve->calcCurve << "\n" << std::endl;
 
 		glfwPollEvents();
 
-		if (is_scene_reset || controlBool != m_curve->calcCurve) 
+		if (is_scene_reset || controlBool != m_curve->calcCurve)
 		{
 			m_curve->init(!controlBool);
 			scene_reset();
@@ -217,7 +218,7 @@ void Renderer::load_models()
 	aircraft_object.obj_color = glm::vec4(1.0, 1.0, 1.0, 1.0);
 	aircraft_object.obj_name = "aircraft";
 
-	Object curve_object(m_curve->curve_points_pos);
+	Object curve_object(m_curve->curvePoints);
 	curve_object.m_render_type = RENDER_LINES;
 	curve_object.obj_color = glm::vec4(1.0, 0.0, 0.0,1.0);
 	curve_object.obj_name = "curve";
@@ -251,6 +252,8 @@ void Renderer::draw_scene(Shader& shader)
 
 	glFrontFace(GL_CW);
 
+	int cubeIndex = 0;
+
 	for (size_t i = 0; i < obj_list.size(); i++)
 	{
 		if (obj_list[i].obj_name == "cube")
@@ -258,29 +261,37 @@ void Renderer::draw_scene(Shader& shader)
 			// Draw objects
 			for (unsigned int j = 0; j < m_curve->control_points_pos.size(); j++) {
 				glm::mat4 cur_obj_model_mat = glm::mat4(1.0f);
+
 				cur_obj_model_mat = glm::translate(cur_obj_model_mat, m_curve->control_points_pos[j]);
-				cur_obj_model_mat = glm::scale(cur_obj_model_mat, glm::vec3(0.2, 0.2, 0.2));
+
+				glm::quat q = glm::quat(m_curve->control_points_quaternion[cubeIndex++]);
+
+				glm::mat4 rotmat = glm::toMat4(q);
+
+				cur_obj_model_mat = cur_obj_model_mat * rotmat;
+
+				cur_obj_model_mat = glm::scale(cur_obj_model_mat, glm::vec3(0.4, 0.4, 0.4));
+
 				glUniformMatrix4fv(glGetUniformLocation(shader.program, "model"), 1, GL_FALSE, glm::value_ptr(cur_obj_model_mat));
 				draw_object(shader, obj_list[i]);
+
+				// Draw axis for each cube
+				draw_axis(shader,cur_obj_model_mat);
 			}
 
 		}
 		if (obj_list[i].obj_name == "aircraft")
 		{
-			// Draw Aircraft
 			glm::mat4 cur_aircraft_model_mat = glm::mat4(1.0f);
 			m_aircraft_animation->update(delta_time);
 			cur_aircraft_model_mat = m_aircraft_animation->get_model_mat();
-			glUniformMatrix4fv(glGetUniformLocation(shader.program, "model"), 1, GL_FALSE, glm::value_ptr(cur_aircraft_model_mat));
-			draw_object(shader, obj_list[i]);
-		}
 
-		if (obj_list[i].obj_name == "curve") 
-		{
-			// Draw curve
-			glm::mat4 curve_model_mat =  glm::mat4(1.0f);
-			glUniformMatrix4fv(glGetUniformLocation(shader.program, "model"), 1, GL_FALSE, glm::value_ptr(curve_model_mat));
+			glUniformMatrix4fv(glGetUniformLocation(shader.program, "model"), 1, GL_FALSE, glm::value_ptr(cur_aircraft_model_mat));
+
 			draw_object(shader, obj_list[i]);
+
+			// Draw axis for aircraft
+			draw_axis(shader,cur_aircraft_model_mat);
 		}
 
 		if (obj_list[i].obj_name == "plane")
@@ -294,23 +305,16 @@ void Renderer::draw_scene(Shader& shader)
 
 		if (obj_list[i].obj_name == "axis_arrow")
 		{
-			// Draw three axis
-			glm::mat4 model_mat_x = glm::mat4(1.0f);
-			glUniformMatrix4fv(glGetUniformLocation(shader.program, "model"), 1, GL_FALSE, glm::value_ptr(model_mat_x));
-			obj_list[i].obj_color = glm::vec4(1, 0, 0, 1);
+			glm::mat4 world_identity_obj_mat = glm::mat4(1.0f);
+			draw_axis(shader, world_identity_obj_mat);
+		}
+
+		if (obj_list[i].obj_name == "curve") 
+		{
+			// Draw curve
+			glm::mat4 curve_model_mat =  glm::mat4(1.0f);
+			glUniformMatrix4fv(glGetUniformLocation(shader.program, "model"), 1, GL_FALSE, glm::value_ptr(curve_model_mat));
 			draw_object(shader, obj_list[i]);
-
-			glm::mat4 model_mat_y = glm::mat4(1.0f);
-			model_mat_y = glm::rotate(model_mat_y, glm::radians(-90.0f), glm::vec3(0,1,0));
-			glUniformMatrix4fv(glGetUniformLocation(shader.program, "model"), 1, GL_FALSE, glm::value_ptr(model_mat_y));
-			obj_list[i].obj_color = glm::vec4(0, 1, 0, 1);
-			draw_object(shader,obj_list[i]);
-
-			glm::mat4 model_mat_z = glm::mat4(1.0f);
-			model_mat_z = glm::rotate(model_mat_z, glm::radians(90.0f), glm::vec3(0,0,1));
-			glUniformMatrix4fv(glGetUniformLocation(shader.program, "model"), 1, GL_FALSE, glm::value_ptr(model_mat_z));
-			obj_list[i].obj_color = glm::vec4(0, 0, 1, 1);
-			draw_object(shader,obj_list[i]);
 		}
 	}
 }
@@ -372,7 +376,7 @@ void Renderer::draw_object(Shader& shader, Object& object)
 
 	if (object.m_render_type == RENDER_LINES)
 	{
-		glLineWidth(20.0);
+		glLineWidth(10.0);
 		if (object.m_obj_type == OBJ_POINTS)
 		{
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -385,13 +389,49 @@ void Renderer::draw_object(Shader& shader, Object& object)
 		}
 	}
 
-	if (object.m_render_type == RENDER_POINTS)
+	if (object.m_obj_type == OBJ_POINTS)
 	{
 		glPolygonMode(GL_FRONT_AND_BACK, GL_POINTS);
 		glDrawArrays(GL_POINTS, 0, object.vao_vertices.size());
 	}
 	glBindVertexArray(0);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+}
+
+void Renderer::draw_axis(Shader& shader, const glm::mat4 axis_obj_mat)
+{
+	// You can always see the arrow
+	glDepthFunc(GL_ALWAYS);
+	// Get arrow obj
+	Object *cur_obj = nullptr;
+	for (unsigned int i = 0; i < obj_list.size(); i++)
+	{
+		if (obj_list[i].obj_name == "axis_arrow") {
+			cur_obj = &obj_list[i];
+		}
+	}
+
+	if (cur_obj == nullptr)
+		return;
+
+	// Draw main axis
+	glm::mat4 model_mat_x = axis_obj_mat;
+	glUniformMatrix4fv(glGetUniformLocation(shader.program, "model"), 1, GL_FALSE, glm::value_ptr(model_mat_x));
+	cur_obj->obj_color = glm::vec4(1, 0, 0, 1);
+	draw_object(shader, *cur_obj);
+
+	glm::mat4 model_mat_y = axis_obj_mat;
+	model_mat_y = glm::rotate(model_mat_y, glm::radians(90.0f), glm::vec3(0, 0, 1));
+	glUniformMatrix4fv(glGetUniformLocation(shader.program, "model"), 1, GL_FALSE, glm::value_ptr(model_mat_y));
+	cur_obj->obj_color = glm::vec4(0, 1, 0, 1);
+	draw_object(shader, *cur_obj);
+
+	glm::mat4 model_mat_z = axis_obj_mat;
+	model_mat_z = glm::rotate(model_mat_z, glm::radians(-90.0f), glm::vec3(0, 1, 0));
+	glUniformMatrix4fv(glGetUniformLocation(shader.program, "model"), 1, GL_FALSE, glm::value_ptr(model_mat_z));
+	cur_obj->obj_color = glm::vec4(0, 0, 1, 1);
+	draw_object(shader, *cur_obj);
+	glDepthFunc(GL_LESS);
 }
 
 void Renderer::bind_vaovbo(Object &cur_obj)

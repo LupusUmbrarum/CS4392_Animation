@@ -3,16 +3,17 @@
 #include <vector>
 #include <iostream>
 
-#define GLM_ENABLE_EXPERIMENTAL
+ #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtc/quaternion.hpp>
+#include <glm/gtx/quaternion.hpp>
 
 #include "Curve.h"
 
 class Aircraft_Animation
 {
-
 public:
 	// ttotal is the total amount of time it should take to traverse the loop,
 	// tcurrent is the current time that we're at, and tinc is the value that 
@@ -28,6 +29,7 @@ public:
 	float timeSegmentSize = 0;
 
 	int pointIndex = 0;
+	float total_moving_time = 10;
 
 	Aircraft_Animation();
 	~Aircraft_Animation();
@@ -47,11 +49,12 @@ public:
 	float getMaxVelocity();
 	void initV0();
 	void calcV0();
-
 	glm::mat4 get_model_mat() { return m_model_mat; };
 
 private:
 	glm::mat4 m_model_mat;
-	Curve* m_animation_curve = nullptr;
+	Curve* m_curve = nullptr;
+
 };
+
 
